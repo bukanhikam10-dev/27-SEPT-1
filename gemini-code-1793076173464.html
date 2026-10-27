@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Little Quest for You - 16px Asset Studio & Canvas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0b0f19; color: #f8fafc; }
+        .pixel-font { font-family: 'Press Start 2P', monospace; }
+        .pixel-art { image-rendering: pixelated; }
+        .grid-pattern { background-image: radial-gradient(#334155 1px, transparent 1px); background-size: 16px 16px; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 16x16 SVG Pixel Renderer Engine ---
+        const PixelArtGrid = ({ pixels, size = 64 }) => {
+            return (
+                <svg width={size} height={size} viewBox="0 0 16 16" className="pixel-art rounded-lg bg-slate-950 border border-slate-800 shadow-md">
+                    {pixels.map((row, y) => 
+                        row.map((color, x) => (
+                            color && color !== 'transparent' ? (
+                                <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill={color} />
+                            ) : null
+                        ))
+                    )}
+                </svg>
+            );
+        };
+
+        // --- PIXEL GENERATORS (16x16 DATA MATRICES) ---
+        const getPixelMatrix = (type, customColor = '#ec4899') => {
+            const m = Array(16).fill(null).map(() => Array(16).fill('transparent'));
+
+            if (type.startsWith('leha') || type.startsWith('friend')) {
+                const hijabColor = customColor;
+                // Hijab Top & Sides
+                for (let y = 1; y <= 13; y++) {
+                    for (let x = 4; x <= 11; x++) m[y][x] = hijabColor;
+                }
+                // Face Cutout
+                for (let y = 4; y <= 8; y++) {
+                    for (let x = 6; x <= 9; x++) m[y][x] = '#fed7aa';
+                }
+                // Eyes & Smile
+                m[6][7] = '#0f172a'; m[6][9] = '#0f172a';
+                m[8][7] = '#e11d48'; m[8][8] = '#e11d48';
+                // Body / Clothes
+                const bodyColor = type.includes('sma') ? '#0284c7' : type.includes('ui') ? '#eab308' : type.includes('dpr') ? '#334155' : type.includes('psi') ? '#dc2626' : '#f43f5e';
+                for (let y = 10; y <= 15; y++) {
+                    for (let x = 4; x <= 11; x++) m[y][x] = bodyColor;
+                }
+            } else if (type === 'hikam_drummer') {
+                // Hair & Head
+                for (let x = 5; x <= 10; x++) m[2][x] = '#1e293b';
+                for (let y = 3; y <= 7; y++) {
+                    for (let x = 5; x <= 10; x++) m[y][x] = '#f6d6ad';
+                }
+                // Glasses
+                m[4][6] = '#0f172a'; m[4][7] = '#0f172a'; m[4][9] = '#0f172a'; m[4][10] = '#0f172a';
+                m[4][8] = '#0f172a'; // Bridge
+                // Red Outfit & Drum Sticks
+                for (let y = 8; y <= 14; y++) {
+                    for (let x = 5; x <= 10; x++) m[y][x] = '#dc2626';
+                }
+                // Sticks
+                m[9][3] = '#facc15'; m[9][4] = '#facc15'; m[9][5] = '#facc15';
+                m[9][10] = '#facc15'; m[9][11] = '#facc15'; m[9][12] = '#facc15';
+            } else if (type === 'motor') {
+                // Scooter Body
+                for (let x = 2; x <= 13; x++) m[9][x] = '#0284c7';
+                for (let x = 3; x <= 12; x++) m[10][x] = '#0369a1';
+                // Seat & Handle
+                for (let x = 4; x <= 8; x++) m[8][x] = '#1e293b';
+                m[6][12] = '#cbd5e1'; m[7][12] = '#0284c7';
+                // Wheels
+                m[11][3] = '#000'; m[11][4] = '#000'; m[12][3] = '#000'; m[12][4] = '#000';
+                m[11][11] = '#000'; m[11][12] = '#000'; m[12][11] = '#000'; m[12][12] = '#000';
+                // Headlight
+                m[8][13] = '#fef08a';
+            } else if (type === 'drum_kit') {
+                // Bass Drum
+                for (let y = 7; y <= 14; y++) {
+                    for (let x = 5; x <= 11; x++) m[y][x] = '#dc2626';
+                }
+                m[10][8] = '#cbd5e1'; m[11][8] = '#cbd5e1';
+                // Cymbals
+                for (let x = 1; x <= 4; x++) m[4][x] = '#facc15';
+                for (let y = 5; y <= 13; y++) m[y][2] = '#64748b';
+                for (let x = 12; x <= 15; x++) m[3][x] = '#facc15';
+                for (let y = 4; y <= 13; y++) m[y][13] = '#64748b';
+            } else if (type === 'kopi_kina') {
+                // Coffee Mug
+                for (let y = 6; y <= 12; y++) {
+                    for (let x = 5; x <= 10; x++) m[y][x] = '#f8fafc';
+                }
+                for (let y = 7; y <= 11; y++) m[y][6] = '#78350f'; // Coffee liquid inside
+                m[8][11] = '#f8fafc'; m[9][11] = '#f8fafc'; m[10][11] = '#f8fafc'; // Handle
+                // Steam Smoke
+                m[3][6] = '#94a3b8'; m[4][7] = '#94a3b8'; m[3][9] = '#94a3b8'; m[4][8] = '#94a3b8';
+            } else if (type === 'ice_cream') {
+                // Glass Coupe
+                for (let x = 5; x <= 11; x++) m[6][x] = '#38bdf8';
+                for (let y = 7; y <= 10; y++) {
+                    for (let x = 6; x <= 10; x++) m[y][x] = '#38bdf8';
+                }
+                m[11][8] = '#38bdf8'; m[12][8] = '#38bdf8';
+                for (let x = 6; x <= 10; x++) m[13][x] = '#38bdf8';
+                // Scoops & Cherry
+                for (let x = 6; x <= 8; x++) m[5][x] = '#f43f5e'; // Strawberry
+                for (let x = 9; x <= 10; x++) m[5][x] = '#fef08a'; // Vanilla
+                m[3][7] = '#dc2626'; m[4][7] = '#dc2626'; // Cherry on top!
+            } else if (type === 'letter') {
+                // Envelope
+                for (let y = 4; y <= 12; y++) {
+                    for (let x = 3; x <= 13; x++) m[y][x] = '#fef3c7';
+                }
+                // Red Wax Seal
+                m[7][7] = '#dc2626'; m[7][8] = '#dc2626'; m[8][7] = '#dc2626'; m[8][8] = '#dc2626';
+            } else {
+                // Default Polaroid Photo
+                for (let y = 3; y <= 13; y++) {
+                    for (let x = 4; x <= 12; x++) m[y][x] = '#ffffff';
+                }
+                for (let y = 4; y <= 10; y++) {
+                    for (let x = 5; x <= 11; x++) m[y][x] = '#38bdf8';
+                }
+            }
+            return m;
+        };
+
+        const ASSETS = {
+            leha_eras: [
+                { id: 'leha_child', name: 'Leha (Masa Kecil)', era: 'Chapter 1', color: '#ff8b94' },
+                { id: 'leha_smp', name: 'Leha (SMPN 205)', era: 'Chapter 2', color: '#ffffff' },
+                { id: 'leha_sma', name: 'Leha (SMAN 94)', era: 'Chapter 3', color: '#ffffff' },
+                { id: 'leha_ui', name: 'Leha (UI Ilmu Politik)', era: 'Chapter 4', color: '#facc15' },
+                { id: 'leha_dpr', name: 'Leha (Magang DPR)', era: 'Chapter 5A', color: '#cbd5e1' },
+                { id: 'leha_psi', name: 'Leha (Wamen Red Outer)', era: 'Chapter 5B', color: '#f43f5e' },
+                { id: 'leha_now', name: 'Leha (Kopi Kina Casual)', era: 'Prologue & Final', color: '#fb7185' }
+            ],
+            friends_sma: [
+                { name: 'Aini', color: '#fde68a' },
+                { name: 'Ayu', color: '#fbcfe8' },
+                { name: 'Nurul', color: '#bae6fd' },
+                { name: 'Avista', color: '#a7f3d0' },
+                { name: 'Anita', color: '#ddd6fe' }
+            ],
+            friends_ui: [
+                { name: 'Mentari', color: '#334155' },
+                { name: 'Nadia', color: '#1e3a8a' }
+            ],
+            objects: [
+                { id: 'kopi_kina', name: 'Cangkir Kopi Kina', desc: 'Gelas cangkir hangat di meja Kopi Kina.' },
+                { id: 'photo', name: 'Foto Masa Kecil', desc: 'Bingkai foto keluarga kenangan hangat.' },
+                { id: 'ice_cream', name: 'Sundae Happy Days', desc: 'Es krim taruhan first date lengkap dengan ceri.' },
+                { id: 'letter', name: 'Surat Rahasia 3 Oktober', desc: 'Amplop ulang tahun berstempel lilin merah.' }
+            ]
+        };
+
+        function App() {
+            const [tab, setTab] = useState('leha');
+
+            return (
+                <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+                        <div>
+                            <span className="pixel-font text-xs text-rose-400">16PX VISUAL ASSET STUDIO</span>
+                            <h1 className="text-3xl font-bold text-white mt-1">A Little Quest for You — Asset Gallery</h1>
+                            <p className="text-slate-400 text-sm mt-1">Preview visual interaktif seluruh sprite 16px karakter, sahabat berkerudung, objek, & scene.</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-xs font-semibold flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Visual Preview Active
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Navigation Bar */}
+                    <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-4">
+                        {[
+                            { id: 'leha', label: '🧕 Leha (7 Era Kehidupan)' },
+                            { id: 'hikam', label: '🥁 Hikam (Drummer & Motor)' },
+                            { id: 'friends', label: '👭 Sahabat (SMA & UI)' },
+                            { id: 'objects', label: '🔍 Objek Interaktif' }
+                        ].map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => setTab(t.id)}
+                                className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${
+                                    tab === t.id ? 'bg-rose-500 text-white shadow-lg' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Content Section 1: Leha Eras */}
+                    {tab === 'leha' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            {ASSETS.leha_eras.map(item => (
+                                <div key={item.id} className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl flex flex-col items-center text-center space-y-3 hover:border-slate-700 transition shadow-xl">
+                                    <PixelArtGrid pixels={getPixelMatrix('leha', item.color)} size={112} />
+                                    <div>
+                                        <h3 className="font-bold text-white text-base">{item.name}</h3>
+                                        <span className="text-xs text-rose-400 font-semibold">{item.era}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Content Section 2: Hikam Drummer & Motor */}
+                    {tab === 'hikam' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+                                <span className="pixel-font text-xs text-rose-400">SCENE MOTOR PULANG SMA</span>
+                                <h3 className="text-xl font-bold text-white">Motor Matic SMA & Helm</h3>
+                                <div className="flex items-center gap-6 bg-slate-950 p-5 rounded-xl">
+                                    <PixelArtGrid pixels={getPixelMatrix('motor')} size={128} />
+                                    <div className="text-sm text-slate-300 space-y-2">
+                                        <p className="font-bold text-rose-300">• Motor Matic SMA 16px</p>
+                                        <p>• Hikam menyetir dengan helm</p>
+                                        <p>• Leha bonceng di belakang (hijab + helm)</p>
+                                        <p className="text-xs text-slate-500 italic mt-2">"Mending bareng gue aja, sini."</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl space-y-4 shadow-xl">
+                                <span className="pixel-font text-xs text-rose-400">SMAN 2 TANGERANG LOMBA BAND</span>
+                                <h3 className="text-xl font-bold text-white">Drummer Hikam & Drum Kit Set</h3>
+                                <div className="flex items-center gap-6 bg-slate-950 p-5 rounded-xl">
+                                    <div className="flex gap-2">
+                                        <PixelArtGrid pixels={getPixelMatrix('hikam_drummer')} size={96} />
+                                        <PixelArtGrid pixels={getPixelMatrix('drum_kit')} size={96} />
+                                    </div>
+                                    <div className="text-sm text-slate-300 space-y-2">
+                                        <p className="font-bold text-rose-300">• Hikam Pose Main Drum</p>
+                                        <p>• 16px Complete Drum Kit</p>
+                                        <p>• Stik Drum Kayu Penanda Juara 1</p>
+                                        <p className="text-xs text-slate-500 italic mt-2">"Hari itu band gue juara satu."</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Content Section 3: Friends */}
+                    {tab === 'friends' && (
+                        <div className="space-y-8">
+                            <div>
+                                <h2 className="text-xl font-bold text-rose-400 mb-4">Sahabat SMAN 94 (Kelas IPS) — Berkerudung</h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    {ASSETS.friends_sma.map((f, i) => (
+                                        <div key={i} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col items-center text-center space-y-2">
+                                            <PixelArtGrid pixels={getPixelMatrix('friend_sma', f.color)} size={80} />
+                                            <h4 className="font-bold text-white text-sm">{f.name}</h4>
+                                            <span className="text-xs text-slate-400">SMAN 94</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h2 className="text-xl font-bold text-yellow-400 mb-4">Sahabat UI (Ilmu Politik) — Berkerudung</h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    {ASSETS.friends_ui.map((f, i) => (
+                                        <div key={i} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col items-center text-center space-y-2">
+                                            <PixelArtGrid pixels={getPixelMatrix('friend_ui', f.color)} size={80} />
+                                            <h4 className="font-bold text-white text-sm">{f.name}</h4>
+                                            <span className="text-xs text-slate-400">UI Politics</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Content Section 4: Objects */}
+                    {tab === 'objects' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {ASSETS.objects.map(obj => (
+                                <div key={obj.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col items-center text-center space-y-3 hover:border-slate-700 transition">
+                                    <PixelArtGrid pixels={getPixelMatrix(obj.id)} size={96} />
+                                    <div>
+                                        <h4 className="font-bold text-white text-base">{obj.name}</h4>
+                                        <p className="text-xs text-slate-400 mt-1">{obj.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
